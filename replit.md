@@ -8,6 +8,10 @@ This is a full-stack appointment scheduling system built with React, Node.js/Exp
 
 Preferred communication style: Simple, everyday language.
 
+## Login Credentials
+- Admin: admin@example.com / admin123
+- Doctor: doctor@example.com / doctor123
+
 ## System Architecture
 
 ### Frontend Architecture
@@ -140,3 +144,10 @@ Preferred communication style: Simple, everyday language.
 - Development vs production environment detection
 
 The application is designed as a monorepo with clear separation between client and server code, shared type definitions, and a comprehensive database schema supporting complex appointment scheduling scenarios.
+
+## Recent Changes
+- **2025-07-12**: Fixed authentication system with proper password hashing
+- **2025-07-12**: Resolved navigation issues using wouter routing
+- **2025-07-12**: Successfully implemented login redirect to dashboard
+- **2025-07-12**: Created sample data for users, staff, patients, and services
+- **2025-07-12**: Both admin and doctor login credentials working properly
