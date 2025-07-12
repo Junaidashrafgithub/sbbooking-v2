@@ -52,14 +52,13 @@ function Router() {
   return (
     <Switch>
       <Route path="/login" component={Login} />
-      <Route path="/" component={() => isAuthenticated ? <Redirect to="/dashboard" /> : <Redirect to="/login" />} />
+      <Route path="/" component={Subscribe} />
       <Route path="/dashboard" component={() => <ProtectedRoute component={Dashboard} />} />
       <Route path="/appointments" component={() => <ProtectedRoute component={Appointments} />} />
       <Route path="/staff" component={() => <ProtectedRoute component={Staff} />} />
       <Route path="/patients" component={() => <ProtectedRoute component={Patients} />} />
       <Route path="/services" component={() => <ProtectedRoute component={Services} />} />
       <Route path="/reports" component={() => <ProtectedRoute component={Reports} />} />
-      <Route path="/subscribe" component={() => <ProtectedRoute component={Subscribe} />} />
       <Route path="/admin/doctors" component={() => <ProtectedRoute component={DoctorManagement} />} />
       <Route component={NotFound} />
     </Switch>

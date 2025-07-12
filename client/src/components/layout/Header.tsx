@@ -14,7 +14,7 @@ export function Header() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3a4 4 0 118 0v4m-4 8.5h8" />
               </svg>
             </div>
-            <h1 className="text-2xl font-bold text-gray-900">HealthScheduler</h1>
+            <h1 className="text-2xl font-bold text-gray-900">SBBookings</h1>
           </div>
           <div className="flex items-center space-x-4">
             <div className="flex items-center space-x-2">

@@ -1,8 +1,8 @@
-# Appointment Scheduler System
+# SBBookings - Appointment Scheduler System
 
 ## Overview
 
-This is a full-stack appointment scheduling system built with React, Node.js/Express, and PostgreSQL. The application provides role-based access control for administrators and doctors, with comprehensive appointment management capabilities including recurring appointments, staff management, patient records, and billing functionality.
+SBBookings is a subscription-first appointment scheduling system built with React, Node.js/Express, and PostgreSQL. The application provides role-based access control for administrators and doctors, with comprehensive appointment management capabilities including recurring appointments, staff management, patient records, and billing functionality. The business model is subscription-based where customers purchase app access to become doctors with their own dashboards and staff management capabilities.
 
 ## User Preferences
 
@@ -155,3 +155,6 @@ The application is designed as a monorepo with clear separation between client a
 - **2025-07-12**: Implemented super admin dashboard for managing all doctors
 - **2025-07-12**: Updated staff management - doctors can now add their own staff
 - **2025-07-12**: Added subscription and admin management pages with navigation
+- **2025-07-12**: Moved subscription page to public landing page for sales conversion
+- **2025-07-12**: Rebranded from HealthScheduler to SBBookings throughout the application
+- **2025-07-12**: Implemented subscription-first business model with public pricing page

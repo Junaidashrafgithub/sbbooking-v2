@@ -1,9 +1,10 @@
 import { useState } from 'react';
+import { Link } from 'wouter';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { CheckCircle, Star, Crown, CreditCard } from 'lucide-react';
+import { CheckCircle, Star, Crown, CreditCard, Calendar, Users, BarChart3 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useAuth } from '@/hooks/useAuth';
@@ -70,190 +71,174 @@ export default function Subscribe() {
   const [selectedPlan, setSelectedPlan] = useState<string>('professional');
   const [isLoading, setIsLoading] = useState(false);
 
-  const { data: subscriptionStatus } = useQuery({
-    queryKey: ['/api/subscription/status'],
-    enabled: !!user && user.role === 'doctor'
-  });
-
-  const subscribeMutation = useMutation({
-    mutationFn: async (planId: string) => {
-      const response = await apiRequest('POST', '/api/subscription/create', { planId });
-      return response.json();
-    },
-    onSuccess: (data) => {
-      if (data.clientSecret) {
-        // In a real implementation, this would redirect to Stripe Checkout
-        toast({
-          title: "Subscription Created",
-          description: "Redirecting to payment page...",
-        });
-        // Simulate payment success for demo
-        setTimeout(() => {
-          queryClient.invalidateQueries({ queryKey: ['/api/subscription/status'] });
-          toast({
-            title: "Payment Successful!",
-            description: "Your subscription is now active. Welcome to the platform!",
-          });
-        }, 2000);
-      }
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Subscription Error",
-        description: error.message || "Failed to create subscription",
-        variant: "destructive",
-      });
-    }
-  });
-
-  const handleSubscribe = async (planId: string) => {
-    if (!user || user.role !== 'doctor') {
-      toast({
-        title: "Access Denied",
-        description: "Only doctors can subscribe to plans",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      await subscribeMutation.mutateAsync(planId);
-    } finally {
-      setIsLoading(false);
-    }
+  const handleGetStarted = (planId: string) => {
+    setSelectedPlan(planId);
+    toast({
+      title: "Getting Started",
+      description: "To complete your subscription, you'll need to create an account and login.",
+    });
   };
 
-  if (!user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Card className="w-96">
-          <CardHeader>
-            <CardTitle>Login Required</CardTitle>
-            <CardDescription>
-              Please log in to view subscription options
-            </CardDescription>
-          </CardHeader>
-        </Card>
-      </div>
-    );
-  }
-
-  if (user.role !== 'doctor') {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Card className="w-96">
-          <CardHeader>
-            <CardTitle>Doctor Account Required</CardTitle>
-            <CardDescription>
-              Only doctors can subscribe to our appointment scheduling platform
-            </CardDescription>
-          </CardHeader>
-        </Card>
-      </div>
-    );
-  }
-
-  if (subscriptionStatus?.status === 'active') {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Card className="w-96">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Crown className="h-6 w-6 text-yellow-500" />
-              Active Subscription
-            </CardTitle>
-            <CardDescription>
-              Your subscription is active and ready to use
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              <p><strong>Plan:</strong> {subscriptionStatus.planName}</p>
-              <p><strong>Status:</strong> <Badge variant="secondary">Active</Badge></p>
-              <p><strong>Next Billing:</strong> {new Date(subscriptionStatus.nextBilling).toLocaleDateString()}</p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-gray-50 py-12 px-4">
-      <div className="max-w-7xl mx-auto">
-        <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">
-            Choose Your Plan
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+      {/* Header */}
+      <header className="bg-white shadow-sm border-b">
+        <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
+          <div className="flex items-center gap-2">
+            <Calendar className="h-8 w-8 text-blue-600" />
+            <h1 className="text-2xl font-bold text-gray-900">SBBookings</h1>
+          </div>
+          <div className="flex items-center gap-4">
+            <Link href="/login">
+              <Button variant="outline">Sign In</Button>
+            </Link>
+          </div>
+        </div>
+      </header>
+
+      {/* Hero Section */}
+      <section className="py-20 px-4">
+        <div className="max-w-7xl mx-auto text-center">
+          <h1 className="text-5xl font-bold text-gray-900 mb-6">
+            Professional Appointment Scheduling
           </h1>
-          <p className="text-xl text-gray-600">
-            Start managing your practice with our comprehensive appointment scheduling system
+          <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
+            Transform your practice with SBBookings - the complete appointment scheduling system 
+            designed for healthcare professionals. Manage appointments, staff, and patients with ease.
           </p>
+          <div className="flex flex-wrap justify-center gap-8 mb-12">
+            <div className="flex items-center gap-2">
+              <Calendar className="h-6 w-6 text-blue-600" />
+              <span className="text-lg text-gray-700">Smart Scheduling</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Users className="h-6 w-6 text-blue-600" />
+              <span className="text-lg text-gray-700">Staff Management</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <BarChart3 className="h-6 w-6 text-blue-600" />
+              <span className="text-lg text-gray-700">Advanced Analytics</span>
+            </div>
+          </div>
         </div>
+      </section>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {pricingPlans.map((plan) => (
-            <Card key={plan.id} className={`relative ${plan.popular ? 'border-blue-500 border-2' : ''}`}>
-              {plan.popular && (
-                <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
-                  <Badge className="bg-blue-500 text-white px-3 py-1 flex items-center gap-1">
-                    <Star className="h-3 w-3" />
-                    Most Popular
-                  </Badge>
-                </div>
-              )}
-              
-              <CardHeader>
-                <CardTitle className="text-2xl">{plan.name}</CardTitle>
-                <CardDescription>{plan.description}</CardDescription>
-                <div className="mt-4">
-                  <span className="text-4xl font-bold">${plan.price}</span>
-                  <span className="text-gray-600">/{plan.period}</span>
-                </div>
-              </CardHeader>
-              
-              <CardContent>
-                <ul className="space-y-3 mb-6">
-                  {plan.features.map((feature, index) => (
-                    <li key={index} className="flex items-start gap-2">
-                      <CheckCircle className="h-5 w-5 text-green-500 mt-0.5 flex-shrink-0" />
-                      <span className="text-sm text-gray-600">{feature}</span>
-                    </li>
-                  ))}
-                </ul>
+      {/* Pricing Section */}
+      <section className="py-16 px-4">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold text-gray-900 mb-4">
+              Choose Your Plan
+            </h2>
+            <p className="text-lg text-gray-600">
+              Start managing your practice today. All plans include a 30-day free trial.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {pricingPlans.map((plan) => (
+              <Card key={plan.id} className={`relative ${plan.popular ? 'border-blue-500 border-2 shadow-lg' : ''} bg-white`}>
+                {plan.popular && (
+                  <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
+                    <Badge className="bg-blue-500 text-white px-4 py-1 flex items-center gap-1">
+                      <Star className="h-3 w-3" />
+                      Most Popular
+                    </Badge>
+                  </div>
+                )}
                 
-                <Button 
-                  className="w-full" 
-                  variant={plan.popular ? "default" : "outline"}
-                  onClick={() => handleSubscribe(plan.id)}
-                  disabled={isLoading || subscribeMutation.isPending}
-                >
-                  {isLoading || subscribeMutation.isPending ? (
-                    <>
-                      <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full mr-2" />
-                      Processing...
-                    </>
-                  ) : (
-                    <>
-                      <CreditCard className="h-4 w-4 mr-2" />
-                      Subscribe Now
-                    </>
-                  )}
-                </Button>
-              </CardContent>
-            </Card>
-          ))}
+                <CardHeader>
+                  <CardTitle className="text-2xl">{plan.name}</CardTitle>
+                  <CardDescription>{plan.description}</CardDescription>
+                  <div className="mt-4">
+                    <span className="text-4xl font-bold text-gray-900">${plan.price}</span>
+                    <span className="text-gray-600 text-lg">/{plan.period}</span>
+                  </div>
+                </CardHeader>
+                
+                <CardContent>
+                  <ul className="space-y-3 mb-8">
+                    {plan.features.map((feature, index) => (
+                      <li key={index} className="flex items-start gap-2">
+                        <CheckCircle className="h-5 w-5 text-green-500 mt-0.5 flex-shrink-0" />
+                        <span className="text-sm text-gray-700">{feature}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  
+                  <Button 
+                    onClick={() => handleGetStarted(plan.id)}
+                    className={`w-full ${plan.popular ? 'bg-blue-600 hover:bg-blue-700' : ''}`}
+                    variant={plan.popular ? 'default' : 'outline'}
+                    disabled={isLoading}
+                  >
+                    <CreditCard className="h-4 w-4 mr-2" />
+                    Get Started
+                  </Button>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         </div>
+      </section>
 
-        <div className="mt-12 text-center">
-          <p className="text-gray-600 mb-4">
-            All plans include a 14-day free trial. No credit card required.
-          </p>
-          <p className="text-sm text-gray-500">
-            Need help choosing? Contact our sales team for personalized recommendations.
-          </p>
+      {/* Features Section */}
+      <section className="py-16 px-4 bg-white">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold text-gray-900 mb-4">
+              Everything You Need to Manage Your Practice
+            </h2>
+            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+              SBBookings provides all the tools you need to streamline your healthcare practice
+            </p>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="text-center">
+              <div className="bg-blue-100 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
+                <Calendar className="h-8 w-8 text-blue-600" />
+              </div>
+              <h3 className="text-xl font-semibold mb-2">Smart Scheduling</h3>
+              <p className="text-gray-600">Intelligent appointment booking with conflict detection and automated reminders</p>
+            </div>
+            
+            <div className="text-center">
+              <div className="bg-blue-100 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
+                <Users className="h-8 w-8 text-blue-600" />
+              </div>
+              <h3 className="text-xl font-semibold mb-2">Staff Management</h3>
+              <p className="text-gray-600">Manage your team, assign services, and track availability effortlessly</p>
+            </div>
+            
+            <div className="text-center">
+              <div className="bg-blue-100 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
+                <BarChart3 className="h-8 w-8 text-blue-600" />
+              </div>
+              <h3 className="text-xl font-semibold mb-2">Advanced Analytics</h3>
+              <p className="text-gray-600">Detailed reports and insights to help grow your practice</p>
+            </div>
+          </div>
         </div>
-      </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="bg-gray-900 text-white py-12 px-4">
+        <div className="max-w-7xl mx-auto text-center">
+          <div className="flex items-center justify-center gap-2 mb-4">
+            <Calendar className="h-6 w-6" />
+            <span className="text-xl font-semibold">SBBookings</span>
+          </div>
+          <p className="text-gray-400 mb-6">
+            Professional appointment scheduling for healthcare providers
+          </p>
+          <div className="flex justify-center gap-8">
+            <Link href="/login">
+              <span className="text-gray-400 hover:text-white cursor-pointer">Sign In</span>
+            </Link>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }
