@@ -1,0 +1,213 @@
+You are tasked with building a full-featured Appointment Scheduler System using the following strict development stack and guidelines:
+
+✅ Tech Stack:
+Frontend: React.js (Create using npx create-react-app with npm only)
+
+Backend: Node.js + Express.js (Separate route files per route type for clarity)
+
+Database: PostgreSQL
+
+Language: JavaScript (No TypeScript)
+
+Authentication: JWT Token-based authentication
+
+API Communication: Fetch API or Axios (from React only)
+
+Styling: Tailwind CSS
+
+UI Libraries: Free open-source only (Material UI, Chakra UI, Aceternity UI allowed)
+
+✅ App Structure Overview:
+User Roles:
+Admin
+
+Normal User (Doctor)
+
+Each role should have:
+
+Separate dashboard views.
+
+Role-based access control enforced via frontend and backend.
+
+✅ Frontend Pages Required:
+Login Page
+
+Signup Page
+
+Dashboard (Role-Based)
+
+Doctor:
+
+Calendar view showing current appointments.
+
+Button to add new appointments.
+
+Appointment form must enforce all rules from the original document, including:
+
+No double booking.
+
+Capacity limits.
+
+Service-specific rules.
+
+Staff availability.
+
+Recurring appointments with forward and backward editing.
+
+Group session capacity.
+
+Customer booking limits.
+
+Real-time conflict detection.
+
+Admin:
+
+Global stats and settings overview.
+
+Staff Management Page
+
+Full CRUD operations:
+
+Add, edit, delete, list staff members.
+
+Assign staff to services.
+
+Set availability, leaves, exclusions.
+
+Patient Management Page
+
+Full CRUD operations:
+
+Add, edit, delete, list patients.
+
+Historical engagement tracking.
+
+Per-service usage limits.
+
+Services Management Page
+
+Full CRUD operations:
+
+Add, edit, delete, list services.
+
+Set rules like duration, capacity, allowed staff, recurring options.
+
+System Stats/Details Page
+
+As described in the document:
+
+Reports: appointment history, service usage, cancellations, hours billed, payments received.
+
+Filters: by customer, staff, service, date, location.
+
+✅ Backend System Rules to Enforce:
+No Double Booking:
+
+For both staff and customers.
+
+Recurring Appointment Management:
+
+Forward and backward date changes.
+
+Conflict resolution.
+
+Custom Booking Limits:
+
+Per customer.
+
+Notifications on allowance expiry.
+
+Staff Availability Management:
+
+Editable schedules.
+
+Automatic appointment cancellations if availability changes.
+
+Group Session Management:
+
+Capacity enforcement.
+
+One staff per group session.
+
+Conflict Detection:
+
+Real-time alerts.
+
+Automatic conflict resolution.
+
+Centralized Booking Control:
+
+Only admin and doctor roles can book appointments.
+
+Patients do not book themselves.
+
+Subscription/Organization Isolation:
+
+Each user (organization) has isolated data storage.
+
+No shared access across users.
+
+Billing/Bookkeeping System:
+
+Price per hour.
+
+Report generation by service, customer, date, staff.
+
+Payment confirmation tracking.
+
+✅ Development Rules:
+React setup using:
+
+bash
+Copy
+Edit
+npx create-react-app your-app-name
+No Vite, no Yarn—npm only.
+
+Use Tailwind CSS setup via npm, no CDN.
+
+Use express-generator optional for backend skeleton.
+
+Backend route structure:
+
+bash
+Copy
+Edit
+/routes/auth.js
+/routes/staff.js
+/routes/patients.js
+/routes/services.js
+/routes/appointments.js
+/routes/stats.js
+PostgreSQL tables must cover:
+
+Users
+
+Staff
+
+Patients
+
+Services
+
+Appointments
+
+RecurringAppointmentRules
+
+BillingRecords
+
+UserRoles
+
+✅ Notes for AI Agent:
+Focus on modularity and maintainability in code.
+
+Every rule from the provided document must be implemented precisely.
+
+Prioritize UX clarity: user should not be confused when adding/editing appointments.
+
+Use PostgreSQL’s relational capabilities properly: foreign keys, constraints, joins.
+
+Keep security in mind:
+
+Hash passwords.
+
+Validate JWT on each protected route.
