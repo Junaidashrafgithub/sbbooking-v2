@@ -115,10 +115,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
 
-  // Staff routes
-  app.get('/api/staff', authenticateToken, async (req, res) => {
+  // Staff routes - Updated to allow doctors to manage their own staff
+  app.get('/api/staff', authenticateToken, async (req: any, res) => {
     try {
-      const staffList = await storage.getAllStaff();
+      let staffList;
+      
+      if (req.user.role === 'admin') {
+        // Admin can see all staff
+        staffList = await storage.getAllStaff();
+      } else if (req.user.role === 'doctor') {
+        // Doctor can only see their own staff
+        staffList = await storage.getAllStaff();
+        staffList = staffList.filter(s => s.userId === req.user.id);
+      } else {
+        return res.status(403).json({ message: 'Insufficient permissions' });
+      }
+      
       res.json(staffList);
     } catch (error) {
       console.error('Get staff error:', error);
@@ -126,9 +138,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/staff', authenticateToken, requireRole(['admin']), async (req, res) => {
+  app.post('/api/staff', authenticateToken, requireRole(['admin', 'doctor']), async (req: any, res) => {
     try {
       const staffData = insertStaffSchema.parse(req.body);
+      
+      // If user is a doctor, set userId to their own ID
+      if (req.user.role === 'doctor') {
+        staffData.userId = req.user.id;
+      }
+      
       const staff = await storage.createStaff(staffData);
       res.status(201).json(staff);
     } catch (error) {
@@ -137,10 +155,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put('/api/staff/:id', authenticateToken, requireRole(['admin']), async (req, res) => {
+  app.put('/api/staff/:id', authenticateToken, requireRole(['admin', 'doctor']), async (req: any, res) => {
     try {
       const id = parseInt(req.params.id);
       const staffData = req.body;
+      
+      // If user is a doctor, ensure they can only update their own staff
+      if (req.user.role === 'doctor') {
+        const existingStaff = await storage.getStaff(id);
+        if (!existingStaff || existingStaff.userId !== req.user.id) {
+          return res.status(403).json({ message: 'Can only update your own staff' });
+        }
+      }
+      
       const staff = await storage.updateStaff(id, staffData);
       res.json(staff);
     } catch (error) {
@@ -149,9 +176,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/staff/:id', authenticateToken, requireRole(['admin']), async (req, res) => {
+  app.delete('/api/staff/:id', authenticateToken, requireRole(['admin', 'doctor']), async (req: any, res) => {
     try {
       const id = parseInt(req.params.id);
+      
+      // If user is a doctor, ensure they can only delete their own staff
+      if (req.user.role === 'doctor') {
+        const existingStaff = await storage.getStaff(id);
+        if (!existingStaff || existingStaff.userId !== req.user.id) {
+          return res.status(403).json({ message: 'Can only delete your own staff' });
+        }
+      }
+      
       await storage.deleteStaff(id);
       res.status(204).send();
     } catch (error) {
@@ -414,6 +450,139 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Get staff availability error:', error);
       res.status(500).json({ message: 'Failed to fetch staff availability' });
+    }
+  });
+
+  // Subscription routes
+  app.post('/api/subscription/create', authenticateToken, requireRole(['doctor']), async (req: any, res) => {
+    try {
+      const { planId } = req.body;
+      const userId = req.user.id;
+      
+      // Simulate Stripe subscription creation
+      const fakeClientSecret = `pi_fake_${Math.random().toString(36).substr(2, 9)}`;
+      
+      // Update user subscription status
+      await storage.updateUser(userId, {
+        subscriptionStatus: 'active',
+        subscriptionStartDate: new Date(),
+        subscriptionEndDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
+        stripeCustomerId: `cus_fake_${Math.random().toString(36).substr(2, 9)}`,
+        stripeSubscriptionId: `sub_fake_${Math.random().toString(36).substr(2, 9)}`
+      });
+      
+      res.json({ 
+        clientSecret: fakeClientSecret,
+        planId,
+        message: 'Subscription created successfully (demo mode)'
+      });
+    } catch (error) {
+      console.error('Create subscription error:', error);
+      res.status(400).json({ message: 'Failed to create subscription' });
+    }
+  });
+
+  app.get('/api/subscription/status', authenticateToken, requireRole(['doctor']), async (req: any, res) => {
+    try {
+      const user = await storage.getUser(req.user.id);
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+      
+      res.json({
+        status: user.subscriptionStatus,
+        startDate: user.subscriptionStartDate,
+        endDate: user.subscriptionEndDate,
+        planName: user.subscriptionStatus === 'active' ? 'Professional Plan' : 'No Plan',
+        nextBilling: user.subscriptionEndDate
+      });
+    } catch (error) {
+      console.error('Get subscription status error:', error);
+      res.status(500).json({ message: 'Failed to fetch subscription status' });
+    }
+  });
+
+  // Admin routes
+  app.get('/api/admin/doctors', authenticateToken, requireRole(['admin']), async (req, res) => {
+    try {
+      const doctors = await storage.getAllDoctors();
+      res.json(doctors);
+    } catch (error) {
+      console.error('Get doctors error:', error);
+      res.status(500).json({ message: 'Failed to fetch doctors' });
+    }
+  });
+
+  app.post('/api/admin/doctors', authenticateToken, requireRole(['admin']), async (req, res) => {
+    try {
+      const doctorData = {
+        ...req.body,
+        role: 'doctor'
+      };
+      const doctor = await storage.createUser(doctorData);
+      res.status(201).json(doctor);
+    } catch (error) {
+      console.error('Create doctor error:', error);
+      res.status(400).json({ message: 'Failed to create doctor' });
+    }
+  });
+
+  app.patch('/api/admin/doctors/:id/subscription', authenticateToken, requireRole(['admin']), async (req, res) => {
+    try {
+      const doctorId = parseInt(req.params.id);
+      const { status } = req.body;
+      
+      const updateData: any = { subscriptionStatus: status };
+      
+      if (status === 'active') {
+        updateData.subscriptionStartDate = new Date();
+        updateData.subscriptionEndDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+      } else if (status === 'trial') {
+        updateData.subscriptionStartDate = new Date();
+        updateData.subscriptionEndDate = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
+      }
+      
+      const doctor = await storage.updateUser(doctorId, updateData);
+      res.json(doctor);
+    } catch (error) {
+      console.error('Update doctor subscription error:', error);
+      res.status(400).json({ message: 'Failed to update subscription' });
+    }
+  });
+
+  app.get('/api/admin/stats', authenticateToken, requireRole(['admin']), async (req, res) => {
+    try {
+      const doctors = await storage.getAllDoctors();
+      const appointments = await storage.getAllAppointments();
+      const billingRecords = await storage.getBillingRecords();
+      
+      const currentMonth = new Date().getMonth();
+      const currentYear = new Date().getFullYear();
+      
+      const newDoctorsThisMonth = doctors.filter((d: any) => {
+        const createdAt = new Date(d.createdAt);
+        return createdAt.getMonth() === currentMonth && createdAt.getFullYear() === currentYear;
+      }).length;
+      
+      const activeSubscriptions = doctors.filter((d: any) => d.subscriptionStatus === 'active').length;
+      const monthlyRevenue = billingRecords.reduce((sum, record) => sum + parseFloat(record.amount), 0);
+      
+      res.json({
+        totalDoctors: doctors.length,
+        newDoctorsThisMonth,
+        activeSubscriptions,
+        subscriptionGrowth: Math.round((activeSubscriptions / doctors.length) * 100),
+        totalAppointments: appointments.length,
+        appointmentsThisMonth: appointments.filter((a: any) => {
+          const createdAt = new Date(a.createdAt);
+          return createdAt.getMonth() === currentMonth && createdAt.getFullYear() === currentYear;
+        }).length,
+        monthlyRevenue: monthlyRevenue.toFixed(2),
+        revenueGrowth: 15 // Simulated growth percentage
+      });
+    } catch (error) {
+      console.error('Get admin stats error:', error);
+      res.status(500).json({ message: 'Failed to fetch admin statistics' });
     }
   });
 

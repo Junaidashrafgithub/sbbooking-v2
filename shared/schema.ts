@@ -13,6 +13,12 @@ export const users = pgTable("users", {
   firstName: text("first_name").notNull(),
   lastName: text("last_name").notNull(),
   isActive: boolean("is_active").default(true),
+  // Subscription fields
+  subscriptionStatus: text("subscription_status").default("inactive"), // 'active', 'inactive', 'cancelled'
+  subscriptionStartDate: timestamp("subscription_start_date"),
+  subscriptionEndDate: timestamp("subscription_end_date"),
+  stripeCustomerId: text("stripe_customer_id"),
+  stripeSubscriptionId: text("stripe_subscription_id"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -20,7 +26,7 @@ export const users = pgTable("users", {
 // Staff table
 export const staff = pgTable("staff", {
   id: serial("id").primaryKey(),
-  userId: integer("user_id").references(() => users.id),
+  userId: integer("user_id").references(() => users.id), // The doctor who owns this staff member
   firstName: text("first_name").notNull(),
   lastName: text("last_name").notNull(),
   email: text("email").notNull().unique(),

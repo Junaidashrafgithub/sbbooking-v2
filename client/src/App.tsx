@@ -13,6 +13,8 @@ import Staff from "./pages/staff/Staff";
 import Patients from "./pages/patients/Patients";
 import Services from "./pages/services/Services";
 import Reports from "./pages/reports/Reports";
+import Subscribe from "./pages/subscription/Subscribe";
+import DoctorManagement from "./pages/admin/DoctorManagement";
 
 function ProtectedRoute({ component: Component, ...props }: any) {
   const { isAuthenticated, loading } = useAuth();
@@ -57,6 +59,8 @@ function Router() {
       <Route path="/patients" component={() => <ProtectedRoute component={Patients} />} />
       <Route path="/services" component={() => <ProtectedRoute component={Services} />} />
       <Route path="/reports" component={() => <ProtectedRoute component={Reports} />} />
+      <Route path="/subscribe" component={() => <ProtectedRoute component={Subscribe} />} />
+      <Route path="/admin/doctors" component={() => <ProtectedRoute component={DoctorManagement} />} />
       <Route component={NotFound} />
     </Switch>
   );

@@ -81,6 +81,9 @@ export interface IStorage {
   
   // Authentication
   validatePassword(email: string, password: string): Promise<User | null>;
+  
+  // Admin methods
+  getAllDoctors(): Promise<User[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -426,6 +429,11 @@ export class DatabaseStorage implements IStorage {
     
     const isValid = await bcrypt.compare(password, user.password);
     return isValid ? user : null;
+  }
+  
+  async getAllDoctors(): Promise<User[]> {
+    const doctors = await db.select().from(users).where(eq(users.role, 'doctor'));
+    return doctors;
   }
 }
 
