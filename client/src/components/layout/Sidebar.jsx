@@ -2,14 +2,7 @@ import { Link, useLocation } from 'wouter';
 import { cn } from '@/lib/utils';
 import { useAuth } from '../../hooks/useAuth';
 
-interface SidebarItem {
-  href: string;
-  icon: React.ReactNode;
-  label: string;
-  roles?: string[];
-}
-
-const sidebarItems: SidebarItem[] = [
+const sidebarItems = [
   {
     href: '/dashboard',
     icon: (
@@ -55,7 +48,7 @@ const sidebarItems: SidebarItem[] = [
       </svg>
     ),
     label: 'Services',
-    roles: ['admin'],
+    roles: ['admin', 'doctor'],
   },
   {
     href: '/reports',
@@ -66,7 +59,6 @@ const sidebarItems: SidebarItem[] = [
     ),
     label: 'Reports',
   },
-
   {
     href: '/admin/doctors',
     icon: (

@@ -24,6 +24,7 @@ export interface IStorage {
   // Staff management
   getStaff(id: number): Promise<Staff | undefined>;
   getAllStaff(): Promise<Staff[]>;
+  getStaffByUserId(userId: number): Promise<Staff[]>;
   createStaff(staff: InsertStaff): Promise<Staff>;
   updateStaff(id: number, staff: Partial<InsertStaff>): Promise<Staff>;
   deleteStaff(id: number): Promise<void>;
@@ -32,6 +33,7 @@ export interface IStorage {
   // Patient management
   getPatient(id: number): Promise<Patient | undefined>;
   getAllPatients(): Promise<Patient[]>;
+  getPatientsByUserId(userId: number): Promise<Patient[]>;
   createPatient(patient: InsertPatient): Promise<Patient>;
   updatePatient(id: number, patient: Partial<InsertPatient>): Promise<Patient>;
   deletePatient(id: number): Promise<void>;
@@ -39,6 +41,7 @@ export interface IStorage {
   // Service management
   getService(id: number): Promise<Service | undefined>;
   getAllServices(): Promise<Service[]>;
+  getServicesByUserId(userId: number): Promise<Service[]>;
   createService(service: InsertService): Promise<Service>;
   updateService(id: number, service: Partial<InsertService>): Promise<Service>;
   deleteService(id: number): Promise<void>;
@@ -138,6 +141,15 @@ export class DatabaseStorage implements IStorage {
   async getAllStaff(): Promise<Staff[]> {
     return await db.select().from(staff).where(eq(staff.isActive, true)).orderBy(asc(staff.firstName));
   }
+  
+  async getStaffByUserId(userId: number): Promise<Staff[]> {
+    return await db.select().from(staff)
+      .where(and(
+        eq(staff.isActive, true),
+        eq(staff.userId, userId)
+      ))
+      .orderBy(asc(staff.firstName));
+  }
 
   async createStaff(insertStaff: InsertStaff): Promise<Staff> {
     const [staffMember] = await db
@@ -189,6 +201,15 @@ export class DatabaseStorage implements IStorage {
   async getAllPatients(): Promise<Patient[]> {
     return await db.select().from(patients).where(eq(patients.isActive, true)).orderBy(asc(patients.firstName));
   }
+  
+  async getPatientsByUserId(userId: number): Promise<Patient[]> {
+    return await db.select().from(patients)
+      .where(and(
+        eq(patients.isActive, true),
+        eq(patients.userId, userId)
+      ))
+      .orderBy(asc(patients.firstName));
+  }
 
   async createPatient(insertPatient: InsertPatient): Promise<Patient> {
     const [patient] = await db
@@ -213,19 +234,68 @@ export class DatabaseStorage implements IStorage {
 
   // Service management
   async getService(id: number): Promise<Service | undefined> {
-    const [service] = await db.select().from(services).where(eq(services.id, id));
+    const [service] = await db.select({
+      id: services.id,
+      userId: services.userId,
+      name: services.name,
+      categoryId: services.categoryId,
+      duration: services.duration,
+      price: services.price,
+      isActive: services.isActive,
+      createdAt: services.createdAt,
+      updatedAt: services.updatedAt
+    }).from(services).where(eq(services.id, id));
     return service || undefined;
   }
 
   async getAllServices(): Promise<Service[]> {
-    return await db.select().from(services).where(eq(services.isActive, true)).orderBy(asc(services.name));
+    return await db.select({
+      id: services.id,
+      userId: services.userId,
+      name: services.name,
+      categoryId: services.categoryId,
+      duration: services.duration,
+      price: services.price,
+      isActive: services.isActive,
+      createdAt: services.createdAt,
+      updatedAt: services.updatedAt
+    }).from(services).where(eq(services.isActive, true)).orderBy(asc(services.name));
+  }
+  
+  async getServicesByUserId(userId: number): Promise<Service[]> {
+    return await db.select({
+      id: services.id,
+      userId: services.userId,
+      name: services.name,
+      categoryId: services.categoryId,
+      duration: services.duration,
+      price: services.price,
+      isActive: services.isActive,
+      createdAt: services.createdAt,
+      updatedAt: services.updatedAt
+    }).from(services).where(and(
+      eq(services.userId, userId),
+      eq(services.isActive, true)
+    ));
   }
 
   async createService(insertService: InsertService): Promise<Service> {
+    console.log('Creating service with data:', JSON.stringify(insertService, null, 2));
+    
+    // Ensure userId is explicitly set and not undefined
+    const serviceData = {
+      ...insertService,
+      userId: insertService.userId || null // This will help us see if userId is undefined
+    };
+    
+    console.log('Final service data being inserted:', JSON.stringify(serviceData, null, 2));
+    
     const [service] = await db
       .insert(services)
-      .values(insertService)
+      .values(serviceData)
       .returning();
+    
+    console.log('Service created in database:', JSON.stringify(service, null, 2));
     return service;
   }
 

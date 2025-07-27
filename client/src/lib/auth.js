@@ -1,24 +1,28 @@
-import { User, AuthResponse } from '../types';
+import { store } from '../store';
+import { setCredentials, logout as logoutAction } from '../store/authSlice';
 
 const API_BASE = '/api';
 
 export class AuthService {
-  private static instance: AuthService;
-  private token: string | null = null;
-  private user: User | null = null;
+  static instance;
+  token = null;
+  user = null;
 
-  private constructor() {
-    this.token = localStorage.getItem('auth_token');
+  constructor() {
+    // Get token from Redux store if available
+    const state = store.getState();
+    this.token = state.auth?.token || null;
+    this.user = state.auth?.user || null;
   }
 
-  static getInstance(): AuthService {
+  static getInstance() {
     if (!AuthService.instance) {
       AuthService.instance = new AuthService();
     }
     return AuthService.instance;
   }
 
-  async login(email: string, password: string): Promise<AuthResponse> {
+  async login(email, password) {
     const response = await fetch(`${API_BASE}/auth/login`, {
       method: 'POST',
       headers: {
@@ -31,21 +35,14 @@ export class AuthService {
       throw new Error('Login failed');
     }
 
-    const data: AuthResponse = await response.json();
+    const data = await response.json();
     this.token = data.token;
     this.user = data.user;
     localStorage.setItem('auth_token', data.token);
     return data;
   }
 
-  async register(userData: {
-    email: string;
-    password: string;
-    firstName: string;
-    lastName: string;
-    username: string;
-    role: 'admin' | 'doctor';
-  }): Promise<AuthResponse> {
+  async register(userData) {
     const response = await fetch(`${API_BASE}/auth/register`, {
       method: 'POST',
       headers: {
@@ -58,14 +55,14 @@ export class AuthService {
       throw new Error('Registration failed');
     }
 
-    const data: AuthResponse = await response.json();
+    const data = await response.json();
     this.token = data.token;
     this.user = data.user;
     localStorage.setItem('auth_token', data.token);
     return data;
   }
 
-  async getCurrentUser(): Promise<User | null> {
+  async getCurrentUser() {
     if (!this.token) return null;
 
     try {
@@ -82,6 +79,13 @@ export class AuthService {
 
       const data = await response.json();
       this.user = data.user;
+      
+      // Update Redux store with fresh user data
+      store.dispatch(setCredentials({
+        user: data.user,
+        token: this.token
+      }));
+      
       return data.user;
     } catch (error) {
       this.logout();
@@ -89,33 +93,35 @@ export class AuthService {
     }
   }
 
-  logout(): void {
+  logout() {
     this.token = null;
     this.user = null;
-    localStorage.removeItem('auth_token');
+    
+    // Update Redux store
+    store.dispatch(logoutAction());
   }
 
-  getToken(): string | null {
+  getToken() {
     return this.token;
   }
 
-  getUser(): User | null {
+  getUser() {
     return this.user;
   }
 
-  isAuthenticated(): boolean {
+  isAuthenticated() {
     return !!this.token;
   }
 
-  hasRole(role: string): boolean {
+  hasRole(role) {
     return this.user?.role === role;
   }
 
-  isAdmin(): boolean {
+  isAdmin() {
     return this.hasRole('admin');
   }
 
-  isDoctor(): boolean {
+  isDoctor() {
     return this.hasRole('doctor');
   }
 }

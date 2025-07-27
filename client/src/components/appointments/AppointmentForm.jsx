@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import { store } from "../../store/index";
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -11,7 +12,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
-import { Patient, Service, Staff, Appointment } from '../../types';
 
 const appointmentSchema = z.object({
   patientId: z.number().min(1, 'Patient is required'),
@@ -23,16 +23,8 @@ const appointmentSchema = z.object({
   status: z.enum(['scheduled', 'completed', 'cancelled', 'no_show']).default('scheduled'),
 });
 
-type AppointmentFormData = z.infer<typeof appointmentSchema>;
-
-interface AppointmentFormProps {
-  appointment?: Appointment;
-  onSuccess?: () => void;
-  onCancel?: () => void;
-}
-
-export function AppointmentForm({ appointment, onSuccess, onCancel }: AppointmentFormProps) {
-  const [selectedServiceId, setSelectedServiceId] = useState<number | null>(null);
+export function AppointmentForm({ appointment, onSuccess, onCancel }) {
+  const [selectedServiceId, setSelectedServiceId] = useState(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -42,7 +34,7 @@ export function AppointmentForm({ appointment, onSuccess, onCancel }: Appointmen
     setValue,
     watch,
     formState: { errors },
-  } = useForm<AppointmentFormData>({
+  } = useForm({
     resolver: zodResolver(appointmentSchema),
     defaultValues: appointment ? {
       patientId: appointment.patientId,
@@ -60,22 +52,71 @@ export function AppointmentForm({ appointment, onSuccess, onCancel }: Appointmen
   const watchedServiceId = watch('serviceId');
 
   // Fetch data
-  const { data: patients } = useQuery<Patient[]>({
+  const { data: patients } = useQuery({
     queryKey: ['/api/patients'],
   });
 
-  const { data: services } = useQuery<Service[]>({
+  const { data: services } = useQuery({
     queryKey: ['/api/services'],
   });
 
-  const { data: staffForService } = useQuery<Staff[]>({
-    queryKey: ['/api/staff', 'by-service', watchedServiceId],
-    enabled: !!watchedServiceId,
-  });
+  // Direct fetch for staff data to bypass any React Query caching issues
+  const [staffData, setStaffData] = useState([]);
+  const [staffLoading, setStaffLoading] = useState(true);
+  const [staffError, setStaffError] = useState(null);
+
+  // Fetch staff data directly
+  useEffect(() => {
+    const fetchStaffData = async () => {
+      debugger;
+      try {
+        setStaffLoading(true);
+        // Get token from the Redux store instead of localStorage
+        const token = store.getState().auth.token;
+        console.log('Using auth token:', token ? 'Token exists' : 'No token');
+        
+        const response = await fetch('/api/staff', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          },
+          credentials: 'include' // Include credentials for cookies
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Error ${response.status}: ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        console.log('Staff data fetched directly:', data);
+        
+        if (Array.isArray(data)) {
+          console.log(`Found ${data.length} staff members`);
+          setStaffData(data);
+        } else {
+          console.warn('Staff data is not an array:', data);
+          setStaffData([]);
+        }
+      } catch (error) {
+        console.error('Error fetching staff:', error);
+        setStaffError(error);
+      } finally {
+        setStaffLoading(false);
+      }
+    };
+    
+    fetchStaffData();
+  }, []);
+  
+  // Use the directly fetched staff data
+  const staff = useMemo(() => {
+    console.log('Processing staff data for dropdown:', staffData);
+    return staffData;
+  }, [staffData]);
+
 
   // Create/Update appointment mutation
   const saveAppointmentMutation = useMutation({
-    mutationFn: async (data: AppointmentFormData) => {
+    mutationFn: async (data) => {
       const url = appointment ? `/api/appointments/${appointment.id}` : '/api/appointments';
       const method = appointment ? 'PUT' : 'POST';
       
@@ -90,7 +131,7 @@ export function AppointmentForm({ appointment, onSuccess, onCancel }: Appointmen
       queryClient.invalidateQueries({ queryKey: ['/api/appointments'] });
       onSuccess?.();
     },
-    onError: (error: any) => {
+    onError: (error) => {
       toast({
         title: 'Error',
         description: error.message || 'Failed to save appointment',
@@ -99,7 +140,7 @@ export function AppointmentForm({ appointment, onSuccess, onCancel }: Appointmen
     },
   });
 
-  const onSubmit = (data: AppointmentFormData) => {
+  const onSubmit = (data) => {
     saveAppointmentMutation.mutate(data);
   };
 
@@ -165,18 +206,34 @@ export function AppointmentForm({ appointment, onSuccess, onCancel }: Appointmen
           <div>
             <Label htmlFor="staffId">Staff</Label>
             <Select
-              value={watch('staffId')?.toString()}
-              onValueChange={(value) => setValue('staffId', parseInt(value))}
+              value={watch('staffId') ? watch('staffId').toString() : ''}
+              onValueChange={(value) => {
+                console.log('Staff selected:', value);
+                setValue('staffId', parseInt(value, 10));
+              }}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select staff member" />
               </SelectTrigger>
               <SelectContent>
-                {staffForService?.map((staff) => (
-                  <SelectItem key={staff.id} value={staff.id.toString()}>
-                    {staff.firstName} {staff.lastName} ({staff.role})
+                {console.log('Rendering staff dropdown with data:', staff)}
+                {/* Always render a default option */}
+                <SelectItem value="" disabled>
+                  {staffLoading ? 'Loading staff...' : 'Select a staff member'}
+                </SelectItem>
+                
+                {/* Map through staff if available */}
+                {Array.isArray(staff) && staff.length > 0 ? (
+                  staff.map((staffMember) => (
+                    <SelectItem key={staffMember.id} value={staffMember.id.toString()}>
+                      {staffMember.firstName} {staffMember.lastName} ({staffMember.role})
+                    </SelectItem>
+                  ))
+                ) : !staffLoading ? (
+                  <SelectItem value="no-staff" disabled>
+                    No staff members available
                   </SelectItem>
-                ))}
+                ) : null}
               </SelectContent>
             </Select>
             {errors.staffId && (
@@ -214,7 +271,7 @@ export function AppointmentForm({ appointment, onSuccess, onCancel }: Appointmen
             <Label htmlFor="status">Status</Label>
             <Select
               value={watch('status')}
-              onValueChange={(value) => setValue('status', value as any)}
+              onValueChange={(value) => setValue('status', value)}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select status" />

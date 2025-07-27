@@ -12,7 +12,6 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { apiRequest } from '@/lib/queryClient';
-import { Staff as StaffType, Service } from '@shared/schema';
 
 const staffSchema = z.object({
   firstName: z.string().min(1, 'First name is required'),
@@ -23,11 +22,9 @@ const staffSchema = z.object({
   availability: z.any().optional(),
 });
 
-type StaffFormData = z.infer<typeof staffSchema>;
-
 export default function Staff() {
   const [showAddDialog, setShowAddDialog] = useState(false);
-  const [editingStaff, setEditingStaff] = useState<StaffType | null>(null);
+  const [editingStaff, setEditingStaff] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -38,23 +35,23 @@ export default function Staff() {
     setValue,
     reset,
     formState: { errors },
-  } = useForm<StaffFormData>({
+  } = useForm({
     resolver: zodResolver(staffSchema),
   });
 
   // Fetch staff
-  const { data: staff, isLoading } = useQuery<StaffType[]>({
+  const { data: staff, isLoading } = useQuery({
     queryKey: ['/api/staff'],
   });
 
   // Fetch services for assignment
-  const { data: services } = useQuery<Service[]>({
+  const { data: services } = useQuery({
     queryKey: ['/api/services'],
   });
 
   // Create staff mutation
   const createStaffMutation = useMutation({
-    mutationFn: async (data: StaffFormData) => {
+    mutationFn: async (data) => {
       const response = await apiRequest('POST', '/api/staff', data);
       return response.json();
     },
@@ -67,7 +64,7 @@ export default function Staff() {
       setShowAddDialog(false);
       reset();
     },
-    onError: (error: any) => {
+    onError: (error) => {
       toast({
         title: 'Error',
         description: error.message || 'Failed to create staff member',
@@ -78,7 +75,7 @@ export default function Staff() {
 
   // Update staff mutation
   const updateStaffMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: number; data: Partial<StaffFormData> }) => {
+    mutationFn: async ({ id, data }) => {
       const response = await apiRequest('PUT', `/api/staff/${id}`, data);
       return response.json();
     },
@@ -91,7 +88,7 @@ export default function Staff() {
       setEditingStaff(null);
       reset();
     },
-    onError: (error: any) => {
+    onError: (error) => {
       toast({
         title: 'Error',
         description: error.message || 'Failed to update staff member',
@@ -102,7 +99,7 @@ export default function Staff() {
 
   // Delete staff mutation
   const deleteStaffMutation = useMutation({
-    mutationFn: async (id: number) => {
+    mutationFn: async (id) => {
       await apiRequest('DELETE', `/api/staff/${id}`);
     },
     onSuccess: () => {
@@ -112,7 +109,7 @@ export default function Staff() {
       });
       queryClient.invalidateQueries({ queryKey: ['/api/staff'] });
     },
-    onError: (error: any) => {
+    onError: (error) => {
       toast({
         title: 'Error',
         description: error.message || 'Failed to delete staff member',
@@ -121,7 +118,7 @@ export default function Staff() {
     },
   });
 
-  const onSubmit = (data: StaffFormData) => {
+  const onSubmit = (data) => {
     if (editingStaff) {
       updateStaffMutation.mutate({ id: editingStaff.id, data });
     } else {
@@ -129,7 +126,7 @@ export default function Staff() {
     }
   };
 
-  const handleEdit = (staffMember: StaffType) => {
+  const handleEdit = (staffMember) => {
     setEditingStaff(staffMember);
     setValue('firstName', staffMember.firstName);
     setValue('lastName', staffMember.lastName);
@@ -138,7 +135,7 @@ export default function Staff() {
     setValue('role', staffMember.role);
   };
 
-  const handleDelete = (id: number) => {
+  const handleDelete = (id) => {
     if (window.confirm('Are you sure you want to delete this staff member?')) {
       deleteStaffMutation.mutate(id);
     }
@@ -151,11 +148,11 @@ export default function Staff() {
     member.role.toLowerCase().includes(searchTerm.toLowerCase())
   ) || [];
 
-  const getStatusColor = (isActive: boolean) => {
+  const getStatusColor = (isActive) => {
     return isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800';
   };
 
-  const getRoleColor = (role: string) => {
+  const getRoleColor = (role) => {
     switch (role.toLowerCase()) {
       case 'doctor':
         return 'bg-blue-100 text-blue-800';

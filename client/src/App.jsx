@@ -16,7 +16,7 @@ import Reports from "./pages/reports/Reports";
 import Subscribe from "./pages/subscription/Subscribe";
 import DoctorManagement from "./pages/admin/DoctorManagement";
 
-function ProtectedRoute({ component: Component, ...props }: any) {
+function ProtectedRoute({ component: Component, ...props }) {
   const { isAuthenticated, loading } = useAuth();
   
   if (loading) {
@@ -49,10 +49,17 @@ function Router() {
     );
   }
   
+  // Force re-render when authentication state changes
+  console.log("Router rendering, authenticated:", isAuthenticated);
+  
   return (
     <Switch>
-      <Route path="/login" component={Login} />
-      <Route path="/" component={Subscribe} />
+      <Route path="/login">
+        {isAuthenticated ? <Redirect to="/dashboard" /> : <Login />}
+      </Route>
+      <Route path="/">
+        {isAuthenticated ? <Redirect to="/dashboard" /> : <Subscribe />}
+      </Route>
       <Route path="/dashboard" component={() => <ProtectedRoute component={Dashboard} />} />
       <Route path="/appointments" component={() => <ProtectedRoute component={Appointments} />} />
       <Route path="/staff" component={() => <ProtectedRoute component={Staff} />} />

@@ -3,40 +3,40 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useQuery } from '@tanstack/react-query';
-import { AppointmentWithDetails } from '../../types';
 import { format, startOfWeek, addDays, isSameDay } from 'date-fns';
+import { authService } from '@/lib/authService';
 
-interface CalendarViewProps {
-  selectedDate: Date;
-  onDateSelect: (date: Date) => void;
-}
-
-export function CalendarView({ selectedDate, onDateSelect }: CalendarViewProps) {
+export function CalendarView({ selectedDate, onDateSelect }) {
   const [currentWeek, setCurrentWeek] = useState(startOfWeek(selectedDate));
 
-  const { data: appointments } = useQuery<AppointmentWithDetails[]>({
+  const { data } = useQuery({
     queryKey: ['/api/appointments', 'week', currentWeek.toISOString()],
     queryFn: async () => {
       const startDate = currentWeek.toISOString();
       const endDate = addDays(currentWeek, 6).toISOString();
       const response = await fetch(`/api/appointments?startDate=${startDate}&endDate=${endDate}`, {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+          'Authorization': `Bearer ${authService.getToken()}`,
         },
       });
       return response.json();
     },
   });
+  
+  // Ensure appointments is always an array
+  const appointments = Array.isArray(data?.appointments) ? data?.appointments : 
+                      (Array.isArray(data) ? data : []);
 
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(currentWeek, i));
 
-  const getAppointmentsForDay = (date: Date) => {
-    return appointments?.filter(apt => 
-      isSameDay(new Date(apt.startTime), date)
-    ) || [];
+  const getAppointmentsForDay = (date) => {
+    if (!appointments || !Array.isArray(appointments)) return [];
+    return appointments.filter(apt => 
+      apt && apt.startTime && isSameDay(new Date(apt.startTime), date)
+    );
   };
 
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (status) => {
     switch (status) {
       case 'scheduled':
         return 'bg-blue-100 text-blue-800';

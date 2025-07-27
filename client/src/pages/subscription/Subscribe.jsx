@@ -68,10 +68,10 @@ const pricingPlans = [
 export default function Subscribe() {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [selectedPlan, setSelectedPlan] = useState<string>('professional');
+  const [selectedPlan, setSelectedPlan] = useState('professional');
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleGetStarted = (planId: string) => {
+  const handleGetStarted = (planId) => {
     setSelectedPlan(planId);
     toast({
       title: "Getting Started",
@@ -120,6 +120,11 @@ export default function Subscribe() {
               <span className="text-lg text-gray-700">Advanced Analytics</span>
             </div>
           </div>
+          <div className="flex justify-center">
+            <Button size="lg" className="bg-blue-600 hover:bg-blue-700">
+              Get Started Today
+            </Button>
+          </div>
         </div>
       </section>
 
@@ -128,27 +133,25 @@ export default function Subscribe() {
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-12">
             <h2 className="text-3xl font-bold text-gray-900 mb-4">
-              Choose Your Plan
+              Choose the Right Plan for Your Practice
             </h2>
-            <p className="text-lg text-gray-600">
-              Start managing your practice today. All plans include a 30-day free trial.
+            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+              We offer flexible plans to meet the needs of any healthcare practice, from solo practitioners to large organizations
             </p>
           </div>
-
+          
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {pricingPlans.map((plan) => (
-              <Card key={plan.id} className={`relative ${plan.popular ? 'border-blue-500 border-2 shadow-lg' : ''} bg-white`}>
+              <Card key={plan.id} className={`relative ${plan.popular ? 'border-blue-500 shadow-lg' : ''}`}>
                 {plan.popular && (
-                  <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
-                    <Badge className="bg-blue-500 text-white px-4 py-1 flex items-center gap-1">
-                      <Star className="h-3 w-3" />
-                      Most Popular
-                    </Badge>
-                  </div>
+                  <Badge className="absolute top-0 right-0 transform translate-x-1/4 -translate-y-1/2 bg-blue-600">
+                    <Star className="h-3 w-3 mr-1" />
+                    Most Popular
+                  </Badge>
                 )}
                 
                 <CardHeader>
-                  <CardTitle className="text-2xl">{plan.name}</CardTitle>
+                  <CardTitle>{plan.name}</CardTitle>
                   <CardDescription>{plan.description}</CardDescription>
                   <div className="mt-4">
                     <span className="text-4xl font-bold text-gray-900">${plan.price}</span>

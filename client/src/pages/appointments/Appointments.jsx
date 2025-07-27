@@ -10,15 +10,13 @@ import { useToast } from '@/hooks/use-toast';
 import { CalendarView } from '../../components/appointments/CalendarView';
 import { BookingModal } from '../../components/appointments/BookingModal';
 import { AppointmentForm } from '../../components/appointments/AppointmentForm';
-import { Appointment, Patient, Service, Staff } from '@shared/schema';
-import { AppointmentWithDetails } from '../../types';
 import { format } from 'date-fns';
 import { apiRequest } from '@/lib/queryClient';
 
 export default function Appointments() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [showBookingModal, setShowBookingModal] = useState(false);
-  const [editingAppointment, setEditingAppointment] = useState<AppointmentWithDetails | null>(null);
+  const [editingAppointment, setEditingAppointment] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [staffFilter, setStaffFilter] = useState('all');
@@ -26,7 +24,7 @@ export default function Appointments() {
   const queryClient = useQueryClient();
 
   // Fetch appointments
-  const { data: appointments, isLoading } = useQuery<AppointmentWithDetails[]>({
+  const { data: appointments, isLoading } = useQuery({
     queryKey: ['/api/appointments'],
     queryFn: async () => {
       const response = await fetch('/api/appointments', {
@@ -40,13 +38,13 @@ export default function Appointments() {
   });
 
   // Fetch staff for filtering
-  const { data: staff } = useQuery<Staff[]>({
+  const { data: staff } = useQuery({
     queryKey: ['/api/staff'],
   });
 
   // Delete appointment mutation
   const deleteAppointmentMutation = useMutation({
-    mutationFn: async (id: number) => {
+    mutationFn: async (id) => {
       await apiRequest('DELETE', `/api/appointments/${id}`);
     },
     onSuccess: () => {
@@ -56,7 +54,7 @@ export default function Appointments() {
       });
       queryClient.invalidateQueries({ queryKey: ['/api/appointments'] });
     },
-    onError: (error: any) => {
+    onError: (error) => {
       toast({
         title: 'Error',
         description: error.message || 'Failed to delete appointment',
@@ -78,7 +76,7 @@ export default function Appointments() {
     return matchesSearch && matchesStatus && matchesStaff;
   }) || [];
 
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (status) => {
     switch (status) {
       case 'scheduled':
         return 'bg-blue-100 text-blue-800';
@@ -93,7 +91,7 @@ export default function Appointments() {
     }
   };
 
-  const handleDeleteAppointment = (id: number) => {
+  const handleDeleteAppointment = (id) => {
     if (window.confirm('Are you sure you want to delete this appointment?')) {
       deleteAppointmentMutation.mutate(id);
     }

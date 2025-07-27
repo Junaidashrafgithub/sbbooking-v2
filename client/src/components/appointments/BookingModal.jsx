@@ -11,7 +11,6 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
-import { Patient, Service, Staff } from '@shared/schema';
 
 const bookingSchema = z.object({
   patientId: z.string().min(1, 'Patient is required'),
@@ -25,14 +24,7 @@ const bookingSchema = z.object({
   endDate: z.string().optional(),
 });
 
-type BookingForm = z.infer<typeof bookingSchema>;
-
-interface BookingModalProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}
-
-export function BookingModal({ open, onOpenChange }: BookingModalProps) {
+export function BookingModal({ open, onOpenChange }) {
   const [isRecurring, setIsRecurring] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -44,31 +36,31 @@ export function BookingModal({ open, onOpenChange }: BookingModalProps) {
     watch,
     reset,
     formState: { errors },
-  } = useForm<BookingForm>({
+  } = useForm({
     resolver: zodResolver(bookingSchema),
   });
 
   const selectedServiceId = watch('serviceId');
 
   // Fetch data
-  const { data: patients } = useQuery<Patient[]>({
+  const { data: patients } = useQuery({
     queryKey: ['/api/patients'],
     enabled: open,
   });
 
-  const { data: services } = useQuery<Service[]>({
+  const { data: services } = useQuery({
     queryKey: ['/api/services'],
     enabled: open,
   });
 
-  const { data: staffForService } = useQuery<Staff[]>({
+  const { data: staffForService } = useQuery({
     queryKey: ['/api/staff', 'by-service', selectedServiceId],
     enabled: open && !!selectedServiceId,
   });
 
   // Create appointment mutation
   const createAppointmentMutation = useMutation({
-    mutationFn: async (appointmentData: any) => {
+    mutationFn: async (appointmentData) => {
       const response = await apiRequest('POST', '/api/appointments', appointmentData);
       return response.json();
     },
@@ -81,7 +73,7 @@ export function BookingModal({ open, onOpenChange }: BookingModalProps) {
       onOpenChange(false);
       reset();
     },
-    onError: (error: any) => {
+    onError: (error) => {
       toast({
         title: 'Error',
         description: error.message || 'Failed to schedule appointment',
@@ -90,7 +82,7 @@ export function BookingModal({ open, onOpenChange }: BookingModalProps) {
     },
   });
 
-  const onSubmit = (data: BookingForm) => {
+  const onSubmit = (data) => {
     const startTime = new Date(`${data.date}T${data.time}`);
     const service = services?.find(s => s.id === parseInt(data.serviceId));
     const endTime = new Date(startTime.getTime() + (service?.duration || 60) * 60000);
@@ -125,44 +117,42 @@ export function BookingModal({ open, onOpenChange }: BookingModalProps) {
         </DialogHeader>
         
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="patientId">Patient</Label>
-              <Select onValueChange={(value) => setValue('patientId', value)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select patient" />
-                </SelectTrigger>
-                <SelectContent>
-                  {patients?.map((patient) => (
-                    <SelectItem key={patient.id} value={patient.id.toString()}>
-                      {patient.firstName} {patient.lastName}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {errors.patientId && (
-                <p className="text-sm text-red-500">{errors.patientId.message}</p>
-              )}
-            </div>
+          <div>
+            <Label htmlFor="patientId">Patient</Label>
+            <Select onValueChange={(value) => setValue('patientId', value)}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select patient" />
+              </SelectTrigger>
+              <SelectContent>
+                {patients?.map((patient) => (
+                  <SelectItem key={patient.id} value={patient.id.toString()}>
+                    {patient.firstName} {patient.lastName}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {errors.patientId && (
+              <p className="text-sm text-red-500">{errors.patientId.message}</p>
+            )}
+          </div>
 
-            <div>
-              <Label htmlFor="serviceId">Service</Label>
-              <Select onValueChange={(value) => setValue('serviceId', value)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select service" />
-                </SelectTrigger>
-                <SelectContent>
-                  {services?.map((service) => (
-                    <SelectItem key={service.id} value={service.id.toString()}>
-                      {service.name} ({service.duration} min)
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {errors.serviceId && (
-                <p className="text-sm text-red-500">{errors.serviceId.message}</p>
-              )}
-            </div>
+          <div>
+            <Label htmlFor="serviceId">Service</Label>
+            <Select onValueChange={(value) => setValue('serviceId', value)}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select service" />
+              </SelectTrigger>
+              <SelectContent>
+                {services?.map((service) => (
+                  <SelectItem key={service.id} value={service.id.toString()}>
+                    {service.name} ({service.duration} min)
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {errors.serviceId && (
+              <p className="text-sm text-red-500">{errors.serviceId.message}</p>
+            )}
           </div>
 
           <div>
@@ -232,8 +222,8 @@ export function BookingModal({ open, onOpenChange }: BookingModalProps) {
               id="isRecurring"
               checked={isRecurring}
               onCheckedChange={(checked) => {
-                setIsRecurring(checked as boolean);
-                setValue('isRecurring', checked as boolean);
+                setIsRecurring(checked);
+                setValue('isRecurring', checked);
               }}
             />
             <Label htmlFor="isRecurring">Recurring Appointment</Label>
@@ -243,7 +233,7 @@ export function BookingModal({ open, onOpenChange }: BookingModalProps) {
             <div className="grid grid-cols-2 gap-4 p-4 border rounded-lg">
               <div>
                 <Label htmlFor="frequency">Frequency</Label>
-                <Select onValueChange={(value) => setValue('frequency', value as 'weekly' | 'monthly')}>
+                <Select onValueChange={(value) => setValue('frequency', value)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select frequency" />
                   </SelectTrigger>

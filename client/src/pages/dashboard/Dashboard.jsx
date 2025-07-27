@@ -5,7 +5,6 @@ import { Badge } from '@/components/ui/badge';
 import { useQuery } from '@tanstack/react-query';
 import { CalendarView } from '../../components/appointments/CalendarView';
 import { BookingModal } from '../../components/appointments/BookingModal';
-import { DashboardStats, AppointmentWithDetails } from '../../types';
 import { format } from 'date-fns';
 
 export default function Dashboard() {
@@ -13,12 +12,12 @@ export default function Dashboard() {
   const [showBookingModal, setShowBookingModal] = useState(false);
 
   // Fetch dashboard stats
-  const { data: stats } = useQuery<DashboardStats>({
+  const { data: stats } = useQuery({
     queryKey: ['/api/reports/dashboard'],
   });
 
   // Fetch today's appointments
-  const { data: todayAppointments } = useQuery<AppointmentWithDetails[]>({
+  const { data: todayAppointments } = useQuery({
     queryKey: ['/api/appointments', 'today'],
     queryFn: async () => {
       const today = new Date();
@@ -37,7 +36,7 @@ export default function Dashboard() {
     },
   });
 
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (status) => {
     switch (status) {
       case 'scheduled':
         return 'bg-blue-100 text-blue-800';
@@ -52,7 +51,7 @@ export default function Dashboard() {
     }
   };
 
-  const getServiceColor = (serviceId: number) => {
+  const getServiceColor = (serviceId) => {
     const colors = [
       'bg-blue-50 border-blue-200',
       'bg-green-50 border-green-200',

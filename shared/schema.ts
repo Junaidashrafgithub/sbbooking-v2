@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, decimal, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, decimal, jsonb, unique } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -29,18 +29,23 @@ export const staff = pgTable("staff", {
   userId: integer("user_id").references(() => users.id), // The doctor who owns this staff member
   firstName: text("first_name").notNull(),
   lastName: text("last_name").notNull(),
-  email: text("email").notNull().unique(),
+  email: text("email").notNull(),
   phone: text("phone"),
   role: text("role").notNull(), // 'doctor', 'therapist', etc.
   isActive: boolean("is_active").default(true),
   availability: jsonb("availability"), // JSON object for weekly schedule
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => {
+  return {
+    userEmailIdx: unique().on(table.userId, table.email), // Composite unique constraint on userId and email
+  };
 });
 
 // Patients table
 export const patients = pgTable("patients", {
   id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id), // The doctor who owns this patient
   firstName: text("first_name").notNull(),
   lastName: text("last_name").notNull(),
   email: text("email"),
@@ -66,15 +71,12 @@ export const serviceCategories = pgTable("service_categories", {
 // Services table
 export const services = pgTable("services", {
   id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id), // The doctor who owns this service
   name: text("name").notNull(),
-  description: text("description"),
   categoryId: integer("category_id").references(() => serviceCategories.id),
   duration: integer("duration").notNull(), // in minutes
-  capacity: integer("capacity").default(1), // max customers per session
   price: decimal("price", { precision: 10, scale: 2 }),
-  isGroup: boolean("is_group").default(false),
   isActive: boolean("is_active").default(true),
-  rules: jsonb("rules"), // JSON object for service-specific rules
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

@@ -12,8 +12,6 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { apiRequest } from '@/lib/queryClient';
-import { Patient } from '@shared/schema';
-import { AppointmentWithDetails } from '../../types';
 import { format } from 'date-fns';
 
 const patientSchema = z.object({
@@ -25,12 +23,10 @@ const patientSchema = z.object({
   medicalHistory: z.string().optional(),
 });
 
-type PatientFormData = z.infer<typeof patientSchema>;
-
 export default function Patients() {
   const [showAddDialog, setShowAddDialog] = useState(false);
-  const [editingPatient, setEditingPatient] = useState<Patient | null>(null);
-  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
+  const [editingPatient, setEditingPatient] = useState(null);
+  const [selectedPatient, setSelectedPatient] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -41,32 +37,29 @@ export default function Patients() {
     setValue,
     reset,
     formState: { errors },
-  } = useForm<PatientFormData>({
+  } = useForm({
     resolver: zodResolver(patientSchema),
   });
 
   // Fetch patients
-  const { data: patients, isLoading } = useQuery<Patient[]>({
+  const { data: patients, isLoading } = useQuery({
     queryKey: ['/api/patients'],
   });
 
   // Fetch patient appointments
-  const { data: patientAppointments } = useQuery<AppointmentWithDetails[]>({
+  const { data: patientAppointments } = useQuery({
     queryKey: ['/api/appointments', 'patient', selectedPatient?.id],
     enabled: !!selectedPatient,
     queryFn: async () => {
-      const response = await fetch(`/api/appointments?patientId=${selectedPatient?.id}`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-        },
-      });
+      // Use apiRequest which now uses Redux store for token
+      const response = await apiRequest('GET', `/api/appointments?patientId=${selectedPatient?.id}`, undefined);
       return response.json();
     },
   });
 
   // Create patient mutation
   const createPatientMutation = useMutation({
-    mutationFn: async (data: PatientFormData) => {
+    mutationFn: async (data) => {
       const response = await apiRequest('POST', '/api/patients', data);
       return response.json();
     },
@@ -79,7 +72,7 @@ export default function Patients() {
       setShowAddDialog(false);
       reset();
     },
-    onError: (error: any) => {
+    onError: (error) => {
       toast({
         title: 'Error',
         description: error.message || 'Failed to create patient',
@@ -90,7 +83,7 @@ export default function Patients() {
 
   // Update patient mutation
   const updatePatientMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: number; data: Partial<PatientFormData> }) => {
+    mutationFn: async ({ id, data }) => {
       const response = await apiRequest('PUT', `/api/patients/${id}`, data);
       return response.json();
     },
@@ -103,7 +96,7 @@ export default function Patients() {
       setEditingPatient(null);
       reset();
     },
-    onError: (error: any) => {
+    onError: (error) => {
       toast({
         title: 'Error',
         description: error.message || 'Failed to update patient',
@@ -114,7 +107,7 @@ export default function Patients() {
 
   // Delete patient mutation
   const deletePatientMutation = useMutation({
-    mutationFn: async (id: number) => {
+    mutationFn: async (id) => {
       await apiRequest('DELETE', `/api/patients/${id}`);
     },
     onSuccess: () => {
@@ -124,7 +117,7 @@ export default function Patients() {
       });
       queryClient.invalidateQueries({ queryKey: ['/api/patients'] });
     },
-    onError: (error: any) => {
+    onError: (error) => {
       toast({
         title: 'Error',
         description: error.message || 'Failed to delete patient',
@@ -133,7 +126,7 @@ export default function Patients() {
     },
   });
 
-  const onSubmit = (data: PatientFormData) => {
+  const onSubmit = (data) => {
     if (editingPatient) {
       updatePatientMutation.mutate({ id: editingPatient.id, data });
     } else {
@@ -141,7 +134,7 @@ export default function Patients() {
     }
   };
 
-  const handleEdit = (patient: Patient) => {
+  const handleEdit = (patient) => {
     setEditingPatient(patient);
     setValue('firstName', patient.firstName);
     setValue('lastName', patient.lastName);
@@ -151,7 +144,7 @@ export default function Patients() {
     setValue('medicalHistory', patient.medicalHistory || '');
   };
 
-  const handleDelete = (id: number) => {
+  const handleDelete = (id) => {
     if (window.confirm('Are you sure you want to delete this patient?')) {
       deletePatientMutation.mutate(id);
     }
@@ -164,11 +157,11 @@ export default function Patients() {
     patient.phone?.includes(searchTerm)
   ) || [];
 
-  const getStatusColor = (isActive: boolean) => {
+  const getStatusColor = (isActive) => {
     return isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800';
   };
 
-  const getAppointmentStatusColor = (status: string) => {
+  const getAppointmentStatusColor = (status) => {
     switch (status) {
       case 'scheduled':
         return 'bg-blue-100 text-blue-800';

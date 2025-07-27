@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -15,37 +15,53 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "../../hooks/useAuth";
 import { useLocation } from 'wouter';
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import { selectIsAuthenticated } from "@/store/authSlice";
+
 const loginSchema = z.object({
   email: z.string().email("Invalid email address"),
   password: z.string().min(6, "Password must be at least 6 characters"),
 });
-
-type LoginForm = z.infer<typeof loginSchema>;
 
 export function LoginForm() {
   const [isLoading, setIsLoading] = useState(false);
   const { login } = useAuth();
   const { toast } = useToast();
   const [, setLocation] = useLocation();
+  const isAuthenticated = useAppSelector(selectIsAuthenticated);
+  
+  // Effect to handle navigation after authentication state changes
+  useEffect(() => {
+    if (isAuthenticated) {
+      setLocation('/dashboard');
+    }
+  }, [isAuthenticated, setLocation]);
 
   const {
     register,
     handleSubmit,
     formState: { errors },
-  } = useForm<LoginForm>({
+  } = useForm({
     resolver: zodResolver(loginSchema),
   });
 
-  const onSubmit = async (data: LoginForm) => {
+  const onSubmit = async (data) => {
     setIsLoading(true);
     try {
+      // Login will now update the Redux store automatically
       await login(data.email, data.password);
       toast({
         title: "Success",
         description: "Logged in successfully",
       });
-      setLocation("/dashboard");
+      
+      // Use direct window location navigation instead of router
+      console.log('Login successful, redirecting to dashboard');
+      setTimeout(() => {
+        window.location.href = '/dashboard';
+      }, 500); // Short delay to ensure state is updated
     } catch (error) {
+      console.error('Login error:', error);
       toast({
         title: "Error",
         description: "Invalid credentials. Please try again.",
@@ -77,7 +93,7 @@ export function LoginForm() {
           </div>
         </div>
         <CardTitle className="text-2xl font-bold text-gray-900">
-          HealthScheduler
+          SBBookings
         </CardTitle>
         <CardDescription>Sign in to your account</CardDescription>
       </CardHeader>

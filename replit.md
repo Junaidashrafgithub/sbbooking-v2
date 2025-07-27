@@ -156,5 +156,5 @@ The application is designed as a monorepo with clear separation between client a
 - **2025-07-12**: Updated staff management - doctors can now add their own staff
 - **2025-07-12**: Added subscription and admin management pages with navigation
 - **2025-07-12**: Moved subscription page to public landing page for sales conversion
-- **2025-07-12**: Rebranded from HealthScheduler to SBBookings throughout the application
+- **2025-07-12**: Rebranded from SBBookings to SBBookings throughout the application
 - **2025-07-12**: Implemented subscription-first business model with public pricing page

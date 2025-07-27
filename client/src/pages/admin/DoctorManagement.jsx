@@ -26,15 +26,13 @@ const doctorSchema = z.object({
   subscriptionStatus: z.enum(['active', 'inactive', 'trial']).default('inactive'),
 });
 
-type DoctorFormData = z.infer<typeof doctorSchema>;
-
 export default function DoctorManagement() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [isAddingDoctor, setIsAddingDoctor] = useState(false);
-  const [selectedDoctor, setSelectedDoctor] = useState<any>(null);
+  const [selectedDoctor, setSelectedDoctor] = useState(null);
 
-  const form = useForm<DoctorFormData>({
+  const form = useForm({
     resolver: zodResolver(doctorSchema),
     defaultValues: {
       username: '',
@@ -57,7 +55,7 @@ export default function DoctorManagement() {
   });
 
   const addDoctorMutation = useMutation({
-    mutationFn: async (data: DoctorFormData) => {
+    mutationFn: async (data) => {
       const response = await apiRequest('POST', '/api/admin/doctors', data);
       return response.json();
     },
@@ -71,7 +69,7 @@ export default function DoctorManagement() {
       setIsAddingDoctor(false);
       form.reset();
     },
-    onError: (error: any) => {
+    onError: (error) => {
       toast({
         title: "Error",
         description: error.message || "Failed to add doctor",
@@ -81,7 +79,7 @@ export default function DoctorManagement() {
   });
 
   const updateSubscriptionMutation = useMutation({
-    mutationFn: async ({ doctorId, status }: { doctorId: number, status: string }) => {
+    mutationFn: async ({ doctorId, status }) => {
       const response = await apiRequest('PATCH', `/api/admin/doctors/${doctorId}/subscription`, { status });
       return response.json();
     },
@@ -93,7 +91,7 @@ export default function DoctorManagement() {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/doctors'] });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/stats'] });
     },
-    onError: (error: any) => {
+    onError: (error) => {
       toast({
         title: "Error",
         description: error.message || "Failed to update subscription",
@@ -102,47 +100,37 @@ export default function DoctorManagement() {
     }
   });
 
-  const handleAddDoctor = async (data: DoctorFormData) => {
+  const handleAddDoctor = async (data) => {
     await addDoctorMutation.mutateAsync(data);
   };
 
-  const handleUpdateSubscription = async (doctorId: number, status: string) => {
+  const handleUpdateSubscription = async (doctorId, status) => {
     await updateSubscriptionMutation.mutateAsync({ doctorId, status });
   };
 
   if (user?.role !== 'admin') {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Card className="w-96">
-          <CardHeader>
-            <CardTitle>Access Denied</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p>Only administrators can access doctor management.</p>
-          </CardContent>
-        </Card>
+      <div className="flex items-center justify-center h-[80vh]">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Access Denied</h2>
+          <p className="text-gray-600">You don't have permission to access this page.</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="space-y-8">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold flex items-center gap-2">
-            <Crown className="h-8 w-8 text-yellow-500" />
-            Super Admin Dashboard
-          </h1>
-          <p className="text-muted-foreground mt-2">
-            Manage all doctors and monitor system performance
-          </p>
+          <h2 className="text-3xl font-bold text-gray-900 mb-2">Doctor Management</h2>
+          <p className="text-gray-600">Manage doctors and their subscription status</p>
         </div>
-        
         <Dialog open={isAddingDoctor} onOpenChange={setIsAddingDoctor}>
           <DialogTrigger asChild>
             <Button>
               <UserPlus className="h-4 w-4 mr-2" />
-              Add New Doctor
+              Add Doctor
             </Button>
           </DialogTrigger>
           <DialogContent>
@@ -179,7 +167,6 @@ export default function DoctorManagement() {
                     )}
                   />
                 </div>
-                
                 <FormField
                   control={form.control}
                   name="username"
@@ -193,7 +180,6 @@ export default function DoctorManagement() {
                     </FormItem>
                   )}
                 />
-                
                 <FormField
                   control={form.control}
                   name="email"
@@ -207,7 +193,6 @@ export default function DoctorManagement() {
                     </FormItem>
                   )}
                 />
-                
                 <FormField
                   control={form.control}
                   name="password"
@@ -221,13 +206,12 @@ export default function DoctorManagement() {
                     </FormItem>
                   )}
                 />
-                
                 <FormField
                   control={form.control}
                   name="subscriptionStatus"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Initial Subscription Status</FormLabel>
+                      <FormLabel>Subscription Status</FormLabel>
                       <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
                           <SelectTrigger>
@@ -235,8 +219,8 @@ export default function DoctorManagement() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="trial">Trial</SelectItem>
                           <SelectItem value="active">Active</SelectItem>
+                          <SelectItem value="trial">Trial</SelectItem>
                           <SelectItem value="inactive">Inactive</SelectItem>
                         </SelectContent>
                       </Select>
@@ -244,17 +228,21 @@ export default function DoctorManagement() {
                     </FormItem>
                   )}
                 />
-                
-                <Button type="submit" className="w-full" disabled={addDoctorMutation.isPending}>
-                  {addDoctorMutation.isPending ? 'Adding...' : 'Add Doctor'}
-                </Button>
+                <div className="flex justify-end space-x-2 pt-4">
+                  <Button type="button" variant="outline" onClick={() => setIsAddingDoctor(false)}>
+                    Cancel
+                  </Button>
+                  <Button type="submit" disabled={addDoctorMutation.isPending}>
+                    {addDoctorMutation.isPending ? 'Adding...' : 'Add Doctor'}
+                  </Button>
+                </div>
               </form>
             </Form>
           </DialogContent>
         </Dialog>
       </div>
 
-      {/* System Statistics */}
+      {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -264,11 +252,10 @@ export default function DoctorManagement() {
           <CardContent>
             <div className="text-2xl font-bold">{systemStats?.totalDoctors || 0}</div>
             <p className="text-xs text-muted-foreground">
-              +{systemStats?.newDoctorsThisMonth || 0} this month
+              +{systemStats?.newDoctors || 0} this month
             </p>
           </CardContent>
         </Card>
-        
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Active Subscriptions</CardTitle>
@@ -277,11 +264,10 @@ export default function DoctorManagement() {
           <CardContent>
             <div className="text-2xl font-bold">{systemStats?.activeSubscriptions || 0}</div>
             <p className="text-xs text-muted-foreground">
-              {systemStats?.subscriptionGrowth || 0}% growth
+              {systemStats?.subscriptionRate || 0}% subscription rate
             </p>
           </CardContent>
         </Card>
-        
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Appointments</CardTitle>
@@ -290,11 +276,10 @@ export default function DoctorManagement() {
           <CardContent>
             <div className="text-2xl font-bold">{systemStats?.totalAppointments || 0}</div>
             <p className="text-xs text-muted-foreground">
-              +{systemStats?.appointmentsThisMonth || 0} this month
+              +{systemStats?.appointmentGrowth || 0}% from last month
             </p>
           </CardContent>
         </Card>
-        
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Monthly Revenue</CardTitle>
@@ -333,7 +318,7 @@ export default function DoctorManagement() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {doctors?.map((doctor: any) => (
+                {doctors?.map((doctor) => (
                   <TableRow key={doctor.id}>
                     <TableCell>
                       <div className="flex items-center gap-3">

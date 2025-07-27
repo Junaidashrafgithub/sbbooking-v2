@@ -118,15 +118,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Staff routes - Updated to allow doctors to manage their own staff
   app.get('/api/staff', authenticateToken, async (req: any, res) => {
     try {
+      console.log('GET /api/staff - User:', req.user.id, req.user.role);
+      
       let staffList;
       
       if (req.user.role === 'admin') {
         // Admin can see all staff
         staffList = await storage.getAllStaff();
+        console.log('Admin staff list:', staffList);
       } else if (req.user.role === 'doctor') {
         // Doctor can only see their own staff
-        staffList = await storage.getAllStaff();
-        staffList = staffList.filter(s => s.userId === req.user.id);
+        staffList = await storage.getStaffByUserId(req.user.id);
+        console.log('Doctor staff list for user_id', req.user.id, ':', staffList);
       } else {
         return res.status(403).json({ message: 'Insufficient permissions' });
       }
@@ -197,9 +200,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Patient routes
-  app.get('/api/patients', authenticateToken, async (req, res) => {
+  app.get('/api/patients', authenticateToken, async (req: any, res) => {
     try {
-      const patients = await storage.getAllPatients();
+      let patients;
+      
+      if (req.user.role === 'admin') {
+        // Admin can see all patients
+        patients = await storage.getAllPatients();
+      } else {
+        // Doctors can only see their own patients
+        patients = await storage.getPatientsByUserId(req.user.id);
+      }
+      
       res.json(patients);
     } catch (error) {
       console.error('Get patients error:', error);
@@ -207,9 +219,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/patients', authenticateToken, async (req, res) => {
+  app.post('/api/patients', authenticateToken, async (req: any, res) => {
     try {
       const patientData = insertPatientSchema.parse(req.body);
+      
+      // Associate the patient with the logged-in doctor
+      patientData.userId = req.user.id;
+      
       const patient = await storage.createPatient(patientData);
       res.status(201).json(patient);
     } catch (error) {
@@ -218,9 +234,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put('/api/patients/:id', authenticateToken, async (req, res) => {
+  app.put('/api/patients/:id', authenticateToken, async (req: any, res) => {
     try {
       const id = parseInt(req.params.id);
+      
+      // If user is not an admin, ensure they can only update their own patients
+      if (req.user.role !== 'admin') {
+        const existingPatient = await storage.getPatient(id);
+        if (!existingPatient || existingPatient.userId !== req.user.id) {
+          return res.status(403).json({ message: 'You can only update your own patients' });
+        }
+      }
+      
       const patientData = req.body;
       const patient = await storage.updatePatient(id, patientData);
       res.json(patient);
@@ -230,9 +255,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/patients/:id', authenticateToken, async (req, res) => {
+  app.delete('/api/patients/:id', authenticateToken, async (req: any, res) => {
     try {
       const id = parseInt(req.params.id);
+      
+      // If user is not an admin, ensure they can only delete their own patients
+      if (req.user.role !== 'admin') {
+        const existingPatient = await storage.getPatient(id);
+        if (!existingPatient || existingPatient.userId !== req.user.id) {
+          return res.status(403).json({ message: 'You can only delete your own patients' });
+        }
+      }
+      
       await storage.deletePatient(id);
       res.status(204).send();
     } catch (error) {
@@ -242,9 +276,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Service routes
-  app.get('/api/services', authenticateToken, async (req, res) => {
+  app.get('/api/services', authenticateToken, async (req: any, res) => {
     try {
-      const services = await storage.getAllServices();
+      let services;
+      
+      // If user is a doctor, only return their services
+      // If user is admin, return all services
+      if (req.user.role === 'doctor') {
+        console.log('Fetching services for doctor with ID:', req.user.id);
+        services = await storage.getServicesByUserId(req.user.id);
+        console.log(`Found ${services.length} services for doctor ID ${req.user.id}`);
+      } else {
+        services = await storage.getAllServices();
+      }
+      
       res.json(services);
     } catch (error) {
       console.error('Get services error:', error);
@@ -252,9 +297,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/services', authenticateToken, requireRole(['admin']), async (req, res) => {
+  app.post('/api/services', authenticateToken, requireRole(['admin', 'doctor']), async (req: any, res) => {
     try {
-      const serviceData = insertServiceSchema.parse(req.body);
+      // Add the current user's ID to the service data
+      const serviceData = insertServiceSchema.parse({
+        ...req.body,
+        userId: req.user.id // Add the current user's ID
+      });
+      
+      console.log('Creating service with user ID:', req.user.id);
       const service = await storage.createService(serviceData);
       res.status(201).json(service);
     } catch (error) {
@@ -263,7 +314,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put('/api/services/:id', authenticateToken, requireRole(['admin']), async (req, res) => {
+  app.put('/api/services/:id', authenticateToken, requireRole(['admin', 'doctor']), async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const serviceData = req.body;
@@ -275,7 +326,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/services/:id', authenticateToken, requireRole(['admin']), async (req, res) => {
+  app.delete('/api/services/:id', authenticateToken, requireRole(['admin', 'doctor']), async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       await storage.deleteService(id);
@@ -499,6 +550,146 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Get subscription status error:', error);
       res.status(500).json({ message: 'Failed to fetch subscription status' });
+    }
+  });
+
+  // Service routes
+  app.get('/api/services', authenticateToken, async (req: any, res) => {
+    try {
+      let servicesList;
+      
+      if (req.user.role === 'admin') {
+        // Admin can see all services
+        servicesList = await storage.getAllServices();
+      } else if (req.user.role === 'doctor') {
+        // Doctor can only see their own services
+        servicesList = await storage.getServicesByUserId(req.user.id);
+      } else {
+        return res.status(403).json({ message: 'Insufficient permissions' });
+      }
+      
+      res.json(servicesList);
+    } catch (error) {
+      console.error('Get services error:', error);
+      res.status(500).json({ message: 'Failed to fetch services' });
+    }
+  });
+
+  app.get('/api/services/:id', authenticateToken, async (req: any, res) => {
+    try {
+      const serviceId = parseInt(req.params.id);
+      const service = await storage.getService(serviceId);
+      
+      if (!service) {
+        return res.status(404).json({ message: 'Service not found' });
+      }
+      
+      // Check if user has permission to access this service
+      if (req.user.role !== 'admin' && service.userId !== req.user.id) {
+        return res.status(403).json({ message: 'Insufficient permissions' });
+      }
+      
+      res.json(service);
+    } catch (error) {
+      console.error('Get service error:', error);
+      res.status(500).json({ message: 'Failed to fetch service' });
+    }
+  });
+
+  app.post('/api/services', authenticateToken, async (req: any, res) => {
+    try {
+      // Check if user is admin or doctor
+      // if (req.user.role !== 'admin' && req.user.role !== 'doctor') {
+      //   return res.status(403).json({ message: 'Insufficient permissions' });
+      // }
+      console.log('User ID from token:', req.user.id);
+      console.log('User role:', req.user.role);
+      // Add the user ID to the service data
+      const serviceData = {
+        ...req.body,
+        userId: req.user.id
+      };
+      
+      console.log('Service data before validation:', serviceData);
+      
+      const validatedData = insertServiceSchema.parse(serviceData);
+      
+      console.log('Validated service data:', validatedData);
+      
+      const service = await storage.createService(validatedData);
+      console.log('Created service:', service);
+      
+      res.status(201).json(service);
+    } catch (error) {
+      console.error('Create service error:', error);
+      res.status(400).json({ message: 'Failed to create service' });
+    }
+  });
+
+  app.put('/api/services/:id', authenticateToken, requireRole(['admin', 'doctor']), async (req: any, res) => {
+    try {
+      const serviceId = parseInt(req.params.id);
+      const service = await storage.getService(serviceId);
+      
+      if (!service) {
+        return res.status(404).json({ message: 'Service not found' });
+      }
+      
+      // Check if user has permission to update this service
+      if (req.user.role !== 'admin' && service.userId !== req.user.id) {
+        return res.status(403).json({ message: 'Insufficient permissions' });
+      }
+      
+      const serviceData = req.body;
+      const updatedService = await storage.updateService(serviceId, serviceData);
+      res.json(updatedService);
+    } catch (error) {
+      console.error('Update service error:', error);
+      res.status(400).json({ message: 'Failed to update service' });
+    }
+  });
+
+  app.delete('/api/services/:id', authenticateToken, requireRole(['admin', 'doctor']), async (req: any, res) => {
+    try {
+      const serviceId = parseInt(req.params.id);
+      const service = await storage.getService(serviceId);
+      
+      if (!service) {
+        return res.status(404).json({ message: 'Service not found' });
+      }
+      
+      // Check if user has permission to delete this service
+      if (req.user.role !== 'admin' && service.userId !== req.user.id) {
+        return res.status(403).json({ message: 'Insufficient permissions' });
+      }
+      
+      await storage.deleteService(serviceId);
+      res.status(204).send();
+    } catch (error) {
+      console.error('Delete service error:', error);
+      res.status(400).json({ message: 'Failed to delete service' });
+    }
+  });
+
+  // Service categories routes
+  app.get('/api/service-categories', authenticateToken, async (req, res) => {
+    try {
+      const categories = await storage.getAllServiceCategories();
+      res.json(categories);
+    } catch (error) {
+      console.error('Get service categories error:', error);
+      res.status(500).json({ message: 'Failed to fetch service categories' });
+    }
+  });
+
+  app.post('/api/service-categories', authenticateToken, requireRole(['admin', 'doctor']), async (req, res) => {
+    try {
+      const categoryData = req.body;
+      const category = await storage.createServiceCategory(categoryData);
+      res.status(201).json(category);
+    } catch (error) {
+      console.error('Create service category error:', error);
+      res.status(400).json({ message: 'Failed to create service category' });
     }
   });
 

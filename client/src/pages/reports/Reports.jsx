@@ -6,8 +6,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { useQuery } from '@tanstack/react-query';
-import { DashboardStats, AppointmentWithDetails, Staff, Service, BillingRecord } from '../../types';
 import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
+import { authService } from '@/lib/authService';
 
 export default function Reports() {
   const [dateRange, setDateRange] = useState('last30days');
@@ -17,40 +17,45 @@ export default function Reports() {
   const [endDate, setEndDate] = useState('');
 
   // Fetch dashboard stats
-  const { data: stats } = useQuery<DashboardStats>({
+  const { data: stats } = useQuery({
     queryKey: ['/api/reports/dashboard'],
   });
 
   // Fetch appointments for reporting
-  const { data: appointments } = useQuery<AppointmentWithDetails[]>({
+  const { data: appointmentsData } = useQuery({
     queryKey: ['/api/appointments'],
     queryFn: async () => {
       const response = await fetch('/api/appointments', {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+          'Authorization': `Bearer ${authService.getToken()}`,
         },
       });
       return response.json();
     },
   });
+  
+  // Ensure appointments is always an array
+  const appointments = Array.isArray(appointmentsData?.appointments) 
+    ? appointmentsData?.appointments 
+    : (Array.isArray(appointmentsData) ? appointmentsData : []);
 
   // Fetch staff for filtering
-  const { data: staff } = useQuery<Staff[]>({
+  const { data: staff } = useQuery({
     queryKey: ['/api/staff'],
   });
 
   // Fetch services for filtering
-  const { data: services } = useQuery<Service[]>({
+  const { data: services } = useQuery({
     queryKey: ['/api/services'],
   });
 
   // Fetch billing records
-  const { data: billingRecords } = useQuery<BillingRecord[]>({
+  const { data: billingRecords } = useQuery({
     queryKey: ['/api/billing'],
     queryFn: async () => {
       const response = await fetch('/api/billing', {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+          'Authorization': `Bearer ${authService.getToken()}`,
         },
       });
       return response.json();
@@ -59,15 +64,15 @@ export default function Reports() {
 
   // Filter appointments based on selected criteria
   const getFilteredAppointments = () => {
-    if (!appointments) return [];
+    if (!appointments || !Array.isArray(appointments)) return [];
     
-    let filtered = appointments;
+    let filtered = [...appointments]; // Create a copy of the array
     
     // Filter by date range
     if (dateRange !== 'all') {
       const now = new Date();
-      let filterStartDate: Date;
-      let filterEndDate: Date = now;
+      let filterStartDate;
+      let filterEndDate = now;
       
       switch (dateRange) {
         case 'last7days':
@@ -94,20 +99,29 @@ export default function Reports() {
           return filtered;
       }
       
-      filtered = filtered.filter(appointment => {
-        const appointmentDate = new Date(appointment.startTime);
-        return appointmentDate >= filterStartDate && appointmentDate <= filterEndDate;
-      });
+      if (Array.isArray(filtered)) {
+        filtered = filtered.filter(appointment => {
+          if (!appointment || !appointment.startTime) return false;
+          const appointmentDate = new Date(appointment.startTime);
+          return appointmentDate >= filterStartDate && appointmentDate <= filterEndDate;
+        });
+      } else {
+        filtered = [];
+      }
     }
     
     // Filter by staff
-    if (selectedStaff !== 'all') {
-      filtered = filtered.filter(appointment => appointment.staffId.toString() === selectedStaff);
+    if (selectedStaff !== 'all' && Array.isArray(filtered)) {
+      filtered = filtered.filter(appointment => 
+        appointment && appointment.staffId && appointment.staffId.toString() === selectedStaff
+      );
     }
     
     // Filter by service
-    if (selectedService !== 'all') {
-      filtered = filtered.filter(appointment => appointment.serviceId.toString() === selectedService);
+    if (selectedService !== 'all' && Array.isArray(filtered)) {
+      filtered = filtered.filter(appointment => 
+        appointment && appointment.serviceId && appointment.serviceId.toString() === selectedService
+      );
     }
     
     return filtered;
@@ -147,12 +161,12 @@ export default function Reports() {
       staff: `${staffMember.firstName} ${staffMember.lastName}`,
       appointments: staffAppointments.length,
       completed: completedByStaff,
+      completionRate: staffAppointments.length ? Math.round((completedByStaff / staffAppointments.length) * 100) : 0,
       totalHours: totalHours.toFixed(1),
-      completionRate: staffAppointments.length > 0 ? ((completedByStaff / staffAppointments.length) * 100).toFixed(1) : '0'
     };
   }) || [];
 
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (status) => {
     switch (status) {
       case 'scheduled':
         return 'bg-blue-100 text-blue-800';
@@ -169,18 +183,18 @@ export default function Reports() {
 
   return (
     <div className="space-y-8">
-      <div className="mb-8">
+      <div>
         <h2 className="text-3xl font-bold text-gray-900 mb-2">Reports & Analytics</h2>
-        <p className="text-gray-600">Comprehensive reporting and system analytics</p>
+        <p className="text-gray-600">View appointment statistics and business performance</p>
       </div>
 
-      {/* Report Filters */}
+      {/* Filters */}
       <Card>
         <CardHeader>
-          <CardTitle>Report Filters</CardTitle>
+          <CardTitle>Filter Reports</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <Label htmlFor="dateRange">Date Range</Label>
               <Select value={dateRange} onValueChange={setDateRange}>
@@ -193,11 +207,9 @@ export default function Reports() {
                   <SelectItem value="last90days">Last 90 Days</SelectItem>
                   <SelectItem value="thisYear">This Year</SelectItem>
                   <SelectItem value="custom">Custom Range</SelectItem>
-                  <SelectItem value="all">All Time</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-            
             <div>
               <Label htmlFor="staff">Staff Member</Label>
               <Select value={selectedStaff} onValueChange={setSelectedStaff}>
@@ -214,9 +226,8 @@ export default function Reports() {
                 </SelectContent>
               </Select>
             </div>
-            
             <div>
-              <Label htmlFor="service">Service Type</Label>
+              <Label htmlFor="service">Service</Label>
               <Select value={selectedService} onValueChange={setSelectedService}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select service" />
@@ -231,73 +242,57 @@ export default function Reports() {
                 </SelectContent>
               </Select>
             </div>
-            
-            <div className="flex items-end">
-              <Button 
-                className="w-full"
-                onClick={() => {
-                  // Trigger report generation (data is already filtered)
-                }}
-              >
-                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                </svg>
-                Generate Report
-              </Button>
-            </div>
+            {dateRange === 'custom' && (
+              <>
+                <div>
+                  <Label htmlFor="startDate">Start Date</Label>
+                  <Input
+                    id="startDate"
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="endDate">End Date</Label>
+                  <Input
+                    id="endDate"
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                  />
+                </div>
+              </>
+            )}
           </div>
-          
-          {dateRange === 'custom' && (
-            <div className="grid grid-cols-2 gap-4 mt-4">
-              <div>
-                <Label htmlFor="startDate">Start Date</Label>
-                <Input
-                  id="startDate"
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                />
-              </div>
-              <div>
-                <Label htmlFor="endDate">End Date</Label>
-                <Input
-                  id="endDate"
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                />
-              </div>
-            </div>
-          )}
         </CardContent>
       </Card>
 
-      {/* Summary Statistics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      {/* Stats Overview */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Total Appointments</p>
-                <p className="text-2xl font-bold text-gray-900">{totalAppointments}</p>
+                <p className="text-sm font-medium text-gray-500">Total Appointments</p>
+                <h3 className="text-2xl font-bold text-gray-900">{totalAppointments}</h3>
               </div>
-              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+              <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
                 <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3a4 4 0 118 0v4m-4 8.5h8" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
               </div>
             </div>
           </CardContent>
         </Card>
-
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Completed</p>
-                <p className="text-2xl font-bold text-green-600">{completedAppointments}</p>
+                <p className="text-sm font-medium text-gray-500">Completed</p>
+                <h3 className="text-2xl font-bold text-gray-900">{completedAppointments}</h3>
               </div>
-              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+              <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
                 <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
@@ -305,15 +300,14 @@ export default function Reports() {
             </div>
           </CardContent>
         </Card>
-
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Cancelled</p>
-                <p className="text-2xl font-bold text-red-600">{cancelledAppointments}</p>
+                <p className="text-sm font-medium text-gray-500">Cancelled</p>
+                <h3 className="text-2xl font-bold text-gray-900">{cancelledAppointments}</h3>
               </div>
-              <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
+              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
                 <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
@@ -321,17 +315,16 @@ export default function Reports() {
             </div>
           </CardContent>
         </Card>
-
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">No Shows</p>
-                <p className="text-2xl font-bold text-yellow-600">{noShowAppointments}</p>
+                <p className="text-sm font-medium text-gray-500">No-Shows</p>
+                <h3 className="text-2xl font-bold text-gray-900">{noShowAppointments}</h3>
               </div>
-              <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
+              <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center">
                 <svg className="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5C2.962 18.333 3.924 20 5.464 20z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                 </svg>
               </div>
             </div>
@@ -339,15 +332,14 @@ export default function Reports() {
         </Card>
       </div>
 
-      {/* Detailed Reports */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Service Utilization */}
+      {/* Service Utilization and Staff Performance */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         <Card>
           <CardHeader>
             <CardTitle>Service Utilization</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
+            <div className="space-y-3">
               {serviceUtilization.map((item, index) => (
                 <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                   <div>
@@ -355,8 +347,8 @@ export default function Reports() {
                     <p className="text-sm text-gray-600">{item.appointments} appointments</p>
                   </div>
                   <div className="text-right">
-                    <p className="font-medium text-gray-900">{item.totalHours}h</p>
-                    <p className="text-sm text-gray-600">${item.revenue}</p>
+                    <p className="font-medium text-gray-900">${item.revenue}</p>
+                    <p className="text-sm text-gray-600">{item.totalHours}h total</p>
                   </div>
                 </div>
               ))}
@@ -364,13 +356,12 @@ export default function Reports() {
           </CardContent>
         </Card>
 
-        {/* Staff Performance */}
         <Card>
           <CardHeader>
             <CardTitle>Staff Performance</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
+            <div className="space-y-3">
               {staffPerformance.map((item, index) => (
                 <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                   <div>

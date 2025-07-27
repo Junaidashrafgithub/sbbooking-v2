@@ -55,8 +55,8 @@ export async function setupVite(app: Express, server: Server) {
       // always reload the index.html file from disk incase it changes
       let template = await fs.promises.readFile(clientTemplate, "utf-8");
       template = template.replace(
-        `src="/src/main.tsx"`,
-        `src="/src/main.tsx?v=${nanoid()}"`,
+        `src="/src/main.jsx"`,
+        `src="/src/main.jsx?v=${nanoid()}"`,
       );
       const page = await vite.transformIndexHtml(url, template);
       res.status(200).set({ "Content-Type": "text/html" }).end(page);
@@ -71,9 +71,22 @@ export function serveStatic(app: Express) {
   const distPath = path.resolve(import.meta.dirname, "public");
 
   if (!fs.existsSync(distPath)) {
-    throw new Error(
-      `Could not find the build directory: ${distPath}, make sure to build the client first`,
-    );
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`Build directory not found at ${distPath}, but continuing in development mode`);
+      // In development mode, we'll just serve a simple message for non-API routes
+      app.use('*', (req, res, next) => {
+        if (!req.path.startsWith('/api')) {
+          res.send('Development mode - API endpoints are available, but client is not built');
+        } else {
+          next();
+        }
+      });
+      return;
+    } else {
+      throw new Error(
+        `Could not find the build directory: ${distPath}, make sure to build the client first`,
+      );
+    }
   }
 
   app.use(express.static(distPath));
